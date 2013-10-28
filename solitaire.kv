@@ -1,0 +1,109 @@
+#:kivy 1.7.2
+#:import kivy kivy
+#:import win kivy.core.window
+
+FloatLayout:
+    layout: layout
+    chooser: chooser
+    menu: menu
+
+    id: layout
+    canvas:
+        Color:
+            rgb: 0, 0.6, 0
+        Rectangle:
+            size: self.size
+    
+    BoxLayout:
+        id: menu
+        orientation: 'horizontal'
+        size_hint: 1, None
+        height: app.menu_height
+        spacing: 0.01*win.Window.width
+        padding: app.pad_by, app.pad_by, app.pad_by, app.pad_by
+
+        canvas.before:
+            Color:
+                rgba: 0.1, 0.1, 0.1, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        Spinner:
+            id: chooser
+            size_hint: None, None
+            size: 0.18*win.Window.width, app.menu_height-2*app.pad_by
+
+        Button:
+            text: 'new game'
+            on_press: app.new_game()
+
+        Button:
+            text: 'restart'
+            on_press: app.restart()
+
+        Button:
+            text: 'undo'
+            on_press: app.undo()
+
+        Button:
+            text: 'redo'
+            on_press: app.redo()
+
+        Button:
+            text: 'auto drop'
+            on_press: app.auto()
+
+        Button:
+            text: 'stats'
+            on_press: app.stats()
+
+        Button:
+            text: 'help'
+            on_press: app.help()
+
+<Button>:
+    font_size: str(app.font_size) + "sp"
+
+<CardImage>:
+    size_hint: None, None
+
+    canvas.before:
+        Color:
+            rgba: 1,1,0,self.alpha
+        BorderImage:
+            source: 'shadow32.png'
+            border: (2,2,2,2)
+            size:(self.width+4, self.height+4)
+            pos: (-2,-2+self.yoffset)
+
+<CardScatter>:
+    size_hint: None, None
+    do_rotation: False
+    do_scale: False
+
+<Counter>:
+    size_hint: 0.03, 0.03
+    text: str(self.count)
+    font_size: str(app.font_size) + "sp"
+
+<AppPopup>:
+    id: this_popup
+    body: popup_grid
+    size_hint: None, None
+    title_size: str(app.font_size) + "sp"
+
+    BoxLayout:
+        orientation: 'vertical'
+   
+        GridLayout:
+            id: popup_grid
+            padding: app.pad_by, app.pad_by, app.pad_by, app.pad_by
+            size_hint: 1, 1
+
+        Button:
+            text: 'continue'
+            size_hint_y: None
+            height: app.menu_height-2*app.pad_by
+            on_release: this_popup.dismiss()
+
