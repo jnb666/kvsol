@@ -7,4 +7,4 @@ See <http://kivy.org> for more on the Kivy framework.
 
 Images derived from <http://code.google.com/p/vectorized-playing-cards/>
 
-Contact: John Banks <jnb@gmail.com>
+Contact: John Banks <jnb666@gmail.com>
