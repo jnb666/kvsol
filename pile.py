@@ -22,10 +22,6 @@ class CardsList(object):
 
     def bottom_card(self): return self.images[0].card
 
-    def set_size(self, size):
-        for img in self.images:
-            img.size = size
-
 
 # on screen card image
 class CardImage(Image, CardsList):
@@ -47,6 +43,12 @@ class CardImage(Image, CardsList):
 
     def lock(self, state): pass
 
+    def resize(self, xpos, ypos, size, xstep=0, ystep=0):
+        Logger.debug("Cards: image resize %s at %d,%d" % (size, xpos, ypos))
+        self.images[0].size = size
+        self.pos = (xpos, ypos)
+        return xpos+xstep, ypos-ystep
+
 
 # draggable set of one or more card images
 class CardScatter(Scatter, CardsList):
@@ -55,13 +57,14 @@ class CardScatter(Scatter, CardsList):
     selected = 0
     
     # add a new image to top of pile
-    def add_image(self, img, xstep, ystep):
-        self.y -= ystep
-        self.width += xstep
-        self.height += ystep
-        for child in self.images: 
-            child.y += ystep
-            child.yoffset += ystep
+    def add_image(self, img, step=False):
+        if step:
+            self.y -= self.pile.ystep
+            self.width += self.pile.xstep
+            self.height += self.pile.ystep
+            for child in self.images: 
+                child.y += self.pile.ystep
+                child.yoffset += self.pile.ystep
         self.images.append(img)
         self.add_widget(img)
 
@@ -75,7 +78,22 @@ class CardScatter(Scatter, CardsList):
         img.y -= img.yoffset
         img.yoffset = 0
         return img
-     
+ 
+    def resize(self, xpos, ypos, size, xstep=0, ystep=0):
+        Logger.debug("Cards: scatter resize %s at %d,%d" % (size, xpos, ypos))
+        pos = (xpos, ypos)
+        for i, img in enumerate(self.images):
+            img.size = size
+            if i > 0:
+                pos = (pos[0]+xstep, pos[1]-ystep)
+        self.pos = pos
+        yoff = 0
+        for img in reversed(self.images):
+            img.y = yoff
+            img.yoffset = yoff
+            yoff += ystep
+        return pos
+
     # select one or more cards from the group
     def on_touch_down(self, touch):
         if not super(CardScatter, self).on_touch_down(touch): return False
@@ -143,10 +161,6 @@ class Pile():
 
     def size(self): return len(self.widgets)-1
 
-    def top_pos(self, offset=0):
-        size = self.size() + offset
-        return self.x+self.xstep*size, self.y-self.ystep*size
-
     def top(self): return self.widgets[-1]
 
     def bottom(self): return self.widgets[1]
@@ -156,6 +170,15 @@ class Pile():
     def pid(self): return (self.type, self.index)
 
     def __str__(self): return "%s%d" % self.pid()
+
+    # position of tiop of pile
+    def top_pos(self, offset=0):
+        x, y = self.x, self.y
+        for w in self.widgets[1:]:
+            ncards = w.cards()
+            x += ncards*self.xstep
+            y -= ncards*self.ystep
+        return x-offset*self.xstep, y+offset*self.ystep
 
     # build rules
     def by_rank(self, card, base=None, order=1, suit=None, wrap=False):
@@ -196,14 +219,14 @@ class Pile():
     # redraw after screen resize
     def redraw(self):
         xpos, ypos = self.x, self.y
+        Logger.debug("Cards: redraw pile %s at %d,%d" % (self, xpos, ypos))
+        # resize base of pile
+        self.widgets[0].resize(xpos, ypos, self.csize)
         if self.counter:
             self.counter.pos = self.counter_pos()
-        for i, w in enumerate(self.widgets):
-            w.pos = xpos, ypos
-            w.set_size(self.csize)
-            if i >= 1:
-                xpos += self.xstep
-                ypos -= self.ystep
+        # resize cards
+        for w in self.widgets[1:]:
+            xpos, ypos = w.resize(xpos, ypos, self.csize, self.xstep, self.ystep)
 
     # empty the pile
     def clear(self, base):
@@ -230,12 +253,12 @@ class Pile():
                 top.top_card() and top.top_card().faceup and 
                 self.game.can_join(self, card) ):
             #Logger.debug("cards: add to existing scatter")
-            top.add_image(img, self.xstep, self.ystep)
+            top.add_image(img, step=True)
         else:
             if card.faceup:
                 top = CardScatter(size=self.csize, pos=self.top_pos(), 
                         callback=self.on_release, pile=self)
-                top.add_image(img, 0, 0)
+                top.add_image(img)
             else:
                 img.pos = self.top_pos()
                 top = img
@@ -295,7 +318,7 @@ class Pile():
         size = (self.csize[0], self.csize[1]-self.ystep)
         under = CardScatter(size=size, pos=(top.x, ypos), callback=top.callback, pile=self)
         for _ in range(top.cards()-selected):
-            under.add_image(top.remove_image(), self.xstep, self.ystep)
+            under.add_image(top.remove_image(), step=True)
         self.widgets.insert(-1, under)
         self.layout.add_widget(under)
         self.layout.add_widget(top)
@@ -308,7 +331,7 @@ class Pile():
             Logger.debug("Cards: rejoin split pile - cards=%d" % w.cards())
             self.move_cards_to(self)
         else:
-            w.pos = self.top_pos(-1)
+            w.pos = self.top_pos(1)
 
     # writes cards on stack to config file
     def save(self, config):

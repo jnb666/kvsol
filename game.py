@@ -1,5 +1,6 @@
 from functools import partial
 from kivy.core.window import Window
+from kivy.config import Config
 from kivy.logger import Logger
 
 from cards import Card, Deck
@@ -40,6 +41,9 @@ class BaseGame(object):
         for pile in self.all_piles():
             self.position_pile(pile)
             pile.redraw()
+        Config.set('graphics', 'width', width)
+        Config.set('graphics', 'height', height)
+        Config.write()
 
     # split window into rows and cols
     def set_scale(self, width, height, menu=0):
