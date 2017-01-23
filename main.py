@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 ## simpie solitaire card game
 import ast
 from functools import partial

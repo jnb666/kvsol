@@ -22,6 +22,10 @@ class CardsList(object):
 
     def bottom_card(self): return self.images[0].card
 
+    def set_size(self, size):
+        for img in self.images:
+            img.size = size
+
 
 # on screen card image
 class CardImage(Image, CardsList):
@@ -36,6 +40,7 @@ class CardImage(Image, CardsList):
 
     def on_touch_down(self, touch):
         if self.callback and self.collide_point(*touch.pos):
+            Logger.debug("Cards: CardImage on_touch_down")
             touch.grab(self)
             self.callback()
             return True
@@ -74,6 +79,8 @@ class CardScatter(Scatter, CardsList):
     # select one or more cards from the group
     def on_touch_down(self, touch):
         if not super(CardScatter, self).on_touch_down(touch): return False
+        Logger.debug("Cards: CardScatter on_touch_down")
+
         if self is self.pile.top():
             self.auto_bring_to_front = True
             # which image was touched?
@@ -83,8 +90,15 @@ class CardScatter(Scatter, CardsList):
                 self.selected += 1
                 if touch.pos[1] <= self.y+child.y+child.height: break 
             Logger.debug("Cards: selected %d out of %d cards" % (self.selected, self.cards()))
+
             if self.selected < self.cards():
                 self.split = self.pile.split_top_widget(self.selected)
+
+            if self.selected == 1 and touch.is_double_tap:
+                Logger.debug("Cards: double tap")
+                self.pile.on_release(auto=True)
+                return False
+
         return True
  
     # release the selection, dragging to new location
@@ -102,33 +116,36 @@ class CardScatter(Scatter, CardsList):
         self.auto_bring_to_front = not state
         self.do_translation_x = not state
         self.do_translation_y = not state
- 
+
 
 # pile of cards on screen
-class Pile(object):
+class Pile():
     type = ''
     index = 0
 
     def __init__(self, game, col, row, suit='', fan='', show_count='', on_touch=None):
+        self.col, self.row = col, row
         self.suit = suit
-        self.xstep = game.fan_pile if fan == 'right' else 0
-        self.ystep = game.fan_pile if fan == 'down' else 0
-        Logger.debug("Cards: new pile type=%s pos=%d %d fan=%s %d %d" % 
-                    (self.type, col, row, fan, self.xstep, self.ystep))
+        self.fan = fan
+        self.show_count = show_count
+        game.position_pile(self)
+        Logger.debug("Cards: new pile type=%s pos=%d %d fan=%s %d %d counter=%s" % 
+                    (self.type, col, row, fan, self.xstep, self.ystep, show_count))
         self.game = game
         self.layout = game.layout
-        self.csize = game.card_size
-        self.x, self.y = game.pos(col, row)
-        self.xpos, self.ypos = self.x, self.y
         self.widgets = []
         self.counter = None
-        self.draw_base(Card.base_image(suit), on_touch, show_count)
+        self.add_base(Card.base_image(suit), on_touch)
         self.clear(1)
 
     # accessors
     def base(self): return self.widgets[0]
 
     def size(self): return len(self.widgets)-1
+
+    def top_pos(self, offset=0):
+        size = self.size() + offset
+        return self.x+self.xstep*size, self.y-self.ystep*size
 
     def top(self): return self.widgets[-1]
 
@@ -158,25 +175,38 @@ class Pile(object):
             top = self.top().top_card()
             return card.color() != top.color() and card.rank == top.next_rank(order,wrap)
 
-    # draw bottom of pile
-    def draw_base(self, image, on_touch, show_count):
+    def counter_pos(self):
+        if self.show_count == 'right':
+            return self.x+self.csize[0], self.y+(self.csize[1]-Counter.ysize)/2
+        elif self.show_count == 'left':
+            return self.x-Counter.xsize, self.y+(self.csize[1]-Counter.ysize)/2
+        else:
+            return self.x+(self.csize[0]-Counter.xsize)/2, self.y-Counter.ysize    
+
+    # bottom of pile
+    def add_base(self, image, on_touch):
         self.widgets.append(CardImage(source=image, size=self.csize, pos=(self.x,self.y)))
         if on_touch:
             self.base().callback = on_touch
         self.layout.add_widget(self.base())
-        if show_count:
-            if show_count == 'right':
-                pos = self.x+self.csize[0], self.y+(self.csize[1]-Counter.ysize)/2
-            elif show_count == 'left':
-                pos = self.x-Counter.xsize, self.y+(self.csize[1]-Counter.ysize)/2
-            else:
-                pos = self.x+(self.csize[0]-Counter.xsize)/2, self.y-Counter.ysize
-            self.counter = Counter(pos=pos)
+        if self.show_count:
+            self.counter = Counter(pos=self.counter_pos())
             self.layout.add_widget(self.counter)
  
+    # redraw after screen resize
+    def redraw(self):
+        xpos, ypos = self.x, self.y
+        if self.counter:
+            self.counter.pos = self.counter_pos()
+        for i, w in enumerate(self.widgets):
+            w.pos = xpos, ypos
+            w.set_size(self.csize)
+            if i >= 1:
+                xpos += self.xstep
+                ypos -= self.ystep
+
     # empty the pile
     def clear(self, base):
-        self.xpos, self.ypos = self.x, self.y
         for w in self.widgets[base:]:
             self.layout.remove_widget(w)            
         del self.widgets[base:]
@@ -203,18 +233,16 @@ class Pile(object):
             top.add_image(img, self.xstep, self.ystep)
         else:
             if card.faceup:
-                top = CardScatter(size=self.csize, pos=(self.xpos,self.ypos), 
+                top = CardScatter(size=self.csize, pos=self.top_pos(), 
                         callback=self.on_release, pile=self)
                 top.add_image(img, 0, 0)
             else:
-                img.pos = (self.xpos,self.ypos)
+                img.pos = self.top_pos()
                 top = img
             # lock underneath widgets so we can't move em
             for under in self.widgets: under.lock(True)
             self.layout.add_widget(top)
             self.widgets.append(top)
-        self.xpos += self.xstep
-        self.ypos -= self.ystep
         if self.counter: self.counter.count += 1
 
     # pop the top card(s)
@@ -222,8 +250,6 @@ class Pile(object):
         if self.size() == 0: return []
         w = self.widgets.pop()
         self.layout.remove_widget(w)
-        self.xpos -= self.xstep*w.cards()
-        self.ypos += self.ystep*w.cards()
         if self.counter: self.counter.count -= w.cards()
         return w.card_list()
     
@@ -282,7 +308,7 @@ class Pile(object):
             Logger.debug("Cards: rejoin split pile - cards=%d" % w.cards())
             self.move_cards_to(self)
         else:
-            w.pos = (self.xpos-self.xstep, self.ypos+self.ystep)
+            w.pos = self.top_pos(-1)
 
     # writes cards on stack to config file
     def save(self, config):

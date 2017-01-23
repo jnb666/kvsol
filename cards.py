@@ -17,7 +17,7 @@ class Card(object):
         if self.faceup:
             return "images/%d%s.png" % (self.rank,self.suit)
         else:
-            return 'images/back.png'
+            return 'images/back2.png'
 
     def color(self):
         if self.suit == 'c' or self.suit == 's': return 1
