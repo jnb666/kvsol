@@ -80,19 +80,20 @@ class CardScatter(Scatter, CardsList):
         return img
  
     def resize(self, xpos, ypos, size, xstep=0, ystep=0):
-        Logger.debug("Cards: scatter resize %s at %d,%d" % (size, xpos, ypos))
         pos = (xpos, ypos)
         for i, img in enumerate(self.images):
             img.size = size
             if i > 0:
                 pos = (pos[0]+xstep, pos[1]-ystep)
         self.pos = pos
+        Logger.debug("Cards: scatter pos -> %d,%d" % pos)
         yoff = 0
         for img in reversed(self.images):
+            #Logger.debug("Cards: scatter yoffset %d -> %d" % (ystep, yoff))
             img.y = yoff
             img.yoffset = yoff
             yoff += ystep
-        return pos
+        return pos[0]+xstep, pos[1]-ystep
 
     # select one or more cards from the group
     def on_touch_down(self, touch):
@@ -227,6 +228,7 @@ class Pile():
         # resize cards
         for w in self.widgets[1:]:
             xpos, ypos = w.resize(xpos, ypos, self.csize, self.xstep, self.ystep)
+        self.layout._trigger_layout()
 
     # empty the pile
     def clear(self, base):

@@ -63,7 +63,7 @@ class BaseGame(object):
             Logger.debug("Cards: set scale from window width: origin = %d %d" % (self.x0,self.y0))
         Logger.info("Cards: card size = %d x %d" % self.card_size)
         self.fan_pile = int(self.fan_pile_scale*self.card_size[1])
-        Logger.debug("Cards: fan pile =  %d" % self.fan_pile)
+        Logger.info("Cards: fan pile =  %d" % self.fan_pile)
 
     def _set_cell_size(self, w, h):
         self.card_size = (w, h)
