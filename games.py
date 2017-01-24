@@ -179,9 +179,9 @@ Touch the deck at bottom right to deal a new card onto each of the tableau piles
     num_rows = 5
     tableau_pos = (0,0)
     foundation_pos = [(8,i) for i in range(4)] + [(9,i) for i in range(4)]
-    waste_pos = (8.5,4)
-    tableau_depth = [3 for i in range(8)]
-    waste_depth = 80
+    waste_pos = [(8.5,4)]
+    tableau_depth = [3] * 8
+    waste_depth = [80]
 
     # setup the initial game layout
     def build(self):
@@ -189,8 +189,8 @@ Touch the deck at bottom right to deal a new card onto each of the tableau piles
             self.add_pile(Tableau(self, i+self.tableau_pos[0], self.tableau_pos[1], fan='down'))
         for i, s in enumerate(Deck.suits*self.decks):
             self.add_pile(Foundation(self, *self.foundation_pos[i], suit=s))
-        self.add_pile(Waste(self, self.waste_pos[0], self.waste_pos[1], show_count='right', 
-            on_touch=self.deal_next))
+        for p in self.waste_pos:
+            self.add_pile(Waste(self, p[0], p[1], show_count='right', on_touch=self.deal_next))
 
     # deal initial cards to given pile
     def start(self, pile, deck):
@@ -199,7 +199,7 @@ Touch the deck at bottom right to deal a new card onto each of the tableau piles
                 pile.add_card(deck.next())
             pile.add_card(deck.next(True))
         elif pile.type == 'waste':
-            for _ in range(self.waste_depth):
+            for _ in range(self.waste_depth[pile.index]):
                 pile.add_card(deck.next())
 
     # can we add num cards from group to pile?
@@ -234,8 +234,8 @@ Similar to Gypsy, but only Kings on empty spaces.
     tableau_pos = (0,1)
     foundation_pos = [(2+i,0) for i in range(8)]
     tableau_depth = [10-i for i in range(10)]
-    waste_pos = (0,0)
-    waste_depth = 49
+    waste_pos = [(0,0)]
+    waste_depth = [49]
 
     # as per Gypsy but only Kings on empty tableau piles
     def can_add(self, src, pile, group, num):
@@ -244,6 +244,37 @@ Similar to Gypsy, but only Kings on empty spaces.
         elif pile.type == 'tableau':
             return pile.by_alt_color(group.bottom_card(), order=-1, base=Deck.king)
         return False
+
+
+class Crossroads(Gypsy):
+    name = 'Crossroads'
+    help = """\
+Similar to Gypsy, but a lot harder.
+    """
+    decks = 4
+    num_tableau = 7
+    num_waste = 2
+    tableau_pos = (1.5,2)
+    foundation_pos = [(1.5+i,0) for i in range(8)] + [(1.5+i,1) for i in range(8)]
+    waste_pos = [(0,0), (0, 1)]
+    tableau_depth = [7] * 7
+    waste_depth = [158,1]
+
+    # deal initial cards to given pile
+    def start(self, pile, deck):
+        if pile.type == 'tableau':
+            for i in range(self.tableau_depth[pile.index]):
+                pile.add_card(deck.next(i%2 == 0))
+        elif pile.type == 'waste':
+            for _ in range(self.waste_depth[pile.index]):
+                pile.add_card(deck.next(pile.index == 1))
+
+    # deal one card from pile onto waste
+    def deal_next(self, append=False, callback=False):
+        pile, waste = self.waste()
+        if pile.size() > 0:
+            Logger.debug("Cards: deal from pack")
+            self.move(pile, waste, 1, flip=True, append=append, callback=callback)
 
 
 class Spider(BaseGame):
