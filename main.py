@@ -3,7 +3,7 @@ import ast
 from functools import partial
 
 import kivy
-kivy.require('1.7.0')
+kivy.require('1.11.1')
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.logger import Logger
@@ -12,6 +12,7 @@ from kivy.core.window import Window
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.metrics import Metrics
+from kivy.utils import platform
 
 from cards import Deck
 from game import BaseGame
@@ -102,13 +103,14 @@ class Solitaire(App):
          
     # initialise the board
     def build(self):
+        self.icon = 'icon.png'
         conf = self.config
         name = conf.get('game', 'name')
         self.font_size = conf.getint('settings', 'font_size')
         Logger.info("Cards: build game %s font size %d" % (name, self.font_size))
         chooser = self.root.chooser
         chooser.values = sorted(GAMES.keys())
-        if not name in GAMES.keys():
+        if not name in list(GAMES.keys()):
             name = sorted(GAMES.keys())[0]
         chooser.text = name
         chooser.bind(text=self.choose)
@@ -129,15 +131,25 @@ class Solitaire(App):
                 self.game.start(pile, self.deck)
                 pile.save(conf)
             conf.write()
-        if kivy.platform() == 'android':
+        if platform == 'android':
             Window.bind(on_keyboard=self.hook_keyboard)
+        Window.on_resize = self.resize
+        delay = self.framerate();
+        Logger.info("Cards: resize delay = %g", delay)
+        self.resize_event = Clock.create_trigger(lambda dt: self.game.do_resize(), delay)
 
     # bind android back key
     def hook_keyboard(self, window, key, *args):
          if key == 27:
             self.undo()
             return True
-     
+
+    # called on window resize
+    def resize(self, width, height):
+        if self.resize_event.is_triggered:
+            self.resize_event.cancel()
+        self.resize_event()
+
     # draws the cards on new game - animate this
     # have some hacky logic here so this is not called while it is running
     def start(self, index, *args):

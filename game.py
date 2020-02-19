@@ -19,7 +19,6 @@ class BaseGame(object):
     def __init__(self, root=None, on_move=None, menu_size=0):
         self.menu_size = menu_size
         self.set_scale(Window.width, Window.height, menu=menu_size)
-        Window.on_resize = self.resize
         self.layout = root.layout
         self.move = on_move
         self.piles = dict(tableau=[], foundation=[], waste=[])
@@ -31,12 +30,13 @@ class BaseGame(object):
     # clear the board 
     def clear(self, base):
         Logger.debug("Cards: clear game (base=%d)" % base)
-        for _, group in self.piles.iteritems():
+        for _, group in list(self.piles.items()):
             for pile in group: pile.clear(base)
         self.won = False
 
     # called on window resize
-    def resize(self, width, height):
+    def do_resize(self):
+        width, height = Window.width, Window.height
         self.set_scale(width, height, menu=self.menu_size)
         for pile in self.all_piles():
             self.position_pile(pile)
