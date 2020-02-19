@@ -3,7 +3,7 @@ import ast
 from functools import partial
 
 import kivy
-kivy.require('1.11.1')
+kivy.require('1.11.0')
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.logger import Logger
@@ -50,7 +50,7 @@ class Solitaire(App):
         config.setdefaults('game', {'name': names[0], 'score': 0, 'won':False})
         config.setdefaults('moves', {'count': 0, 'max': 0})
         config.setdefaults('piles', {})
-        config.setdefaults('settings', {'fps': 10, 'font_size': 20, 'help_font_size': 16, 
+        config.setdefaults('settings', {'fps': 10, 'font_size': 16, 'help_font_size': 14, 
             'popup_width': 0.4, 'popup_height': 0.6})
 
     # settings panel
